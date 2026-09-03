@@ -1,5 +1,5 @@
-// Tip Pool — offline shell cache. Bump CACHE when you deploy a change.
-var CACHE = "tip-pool-v1";
+// Tip Tracker — offline shell cache. Bump CACHE when you deploy a change.
+var CACHE = "tip-tracker-v1";
 var ASSETS = ["./", "./index.html", "./manifest.webmanifest"];
 
 self.addEventListener("install", function (e) {

@@ -1,4 +1,4 @@
-# Tip Pool Calculator
+# Tip Tracker Calculator
 
 A client-side calculator for restaurant servers who tip out part of their
 tips to support staff (food runners, bartenders, bussers, etc.) under

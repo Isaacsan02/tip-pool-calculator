@@ -2,486 +2,1047 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Server Tip Pool Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1f6f4d">
+<title>Tip Pool</title>
+<link rel="manifest" href="manifest.webmanifest">
 <style>
   * { box-sizing: border-box; }
+  html, body { height: 100%; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: #f6f4f0;
     color: #262220;
     margin: 0;
-    padding: 20px 14px 60px;
+    -webkit-text-size-adjust: 100%;
   }
-  .wrap { max-width: 480px; margin: 0 auto; }
-  h1 {
-    font-size: 21px;
-    margin: 0 0 4px;
-    color: #1f6f4d;
-  }
-  .sub { color: #7a7168; font-size: 13px; margin-bottom: 20px; }
-  .tabs {
-    display: flex;
-    background: #eae5da;
-    border-radius: 10px;
-    padding: 3px;
-    margin-bottom: 16px;
-  }
-  .tab {
-    flex: 1;
-    text-align: center;
-    padding: 8px 0;
-    font-size: 13px;
-    font-weight: 600;
-    color: #7a7168;
-    border-radius: 8px;
-    cursor: pointer;
-    user-select: none;
-  }
-  .tab.active {
-    background: #fff;
-    color: #1f6f4d;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-  }
-  .panel { display: none; }
-  .panel.active { display: block; }
+  a { color: #1f6f4d; }
+  a:hover { color: #175338; }
+
+  /* ── shell ───────────────────────────────────────────────── */
+  .app { display: flex; flex-direction: column; height: 100%; }
+  .scroll { flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 14px; }
+  .head { padding: calc(20px + env(safe-area-inset-top)) 0 0; }
+  h1 { font-size: 21px; font-weight: 700; color: #1f6f4d; margin: 0; }
+  .sub { color: #7a7168; font-size: 13px; margin-top: 4px; }
+  .top-nav { display: none; }
+
+  /* ── cards, rows ─────────────────────────────────────────── */
   .card {
-    background: #fff;
-    border-radius: 14px;
-    padding: 18px;
-    margin-bottom: 14px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    border: 1px solid #ece6da;
+    background: #fff; border: 1px solid #ece6da; border-radius: 14px;
+    padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 14px;
   }
-  .card h2 {
-    font-size: 12px;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: #1f6f4d;
-    margin: 0 0 12px;
+  h2 {
+    font-size: 12px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #1f6f4d; margin: 0 0 12px;
   }
-  label {
-    display: block;
-    font-size: 13px;
-    color: #55493f;
-    margin-bottom: 4px;
-    margin-top: 12px;
+  .res {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    padding: 8px 0; font-size: 14px; border-bottom: 1px solid #f2ede2;
   }
-  label:first-of-type { margin-top: 0; }
-  .input-row { position: relative; }
-  .input-row span.prefix {
-    position: absolute;
-    left: 12px; top: 50%;
-    transform: translateY(-50%);
-    color: #a89e91;
-    font-size: 15px;
-  }
-  .input-row span.suffix {
-    position: absolute;
-    right: 12px; top: 50%;
-    transform: translateY(-50%);
-    color: #a89e91;
-    font-size: 14px;
-  }
-  input[type="number"], input[type="text"] {
-    width: 100%;
-    padding: 10px 12px;
-    border: 1px solid #ddd2c2;
-    border-radius: 8px;
-    font-size: 16px;
-    background: #fffdfa;
-    color: #262220;
-  }
-  input.with-prefix { padding-left: 26px; }
-  input.with-suffix { padding-right: 32px; }
-  input:focus { outline: none; border-color: #1f6f4d; }
-  .rule-row {
-    display: flex;
-    gap: 8px;
-    align-items: flex-end;
-    margin-top: 10px;
-    padding-top: 10px;
-    border-top: 1px dashed #ece6da;
-  }
-  .rule-row:first-of-type { border-top: none; padding-top: 0; margin-top: 0; }
-  .rule-row .field { flex: 1; }
-  .rule-row label { margin: 0 0 4px; }
-  .rule-row select {
-    width: 100%;
-    padding: 10px 8px;
-    border: 1px solid #ddd2c2;
-    border-radius: 8px;
-    font-size: 14px;
-    background: #fffdfa;
-  }
-  .rm-btn {
-    background: #f6e9e7;
-    color: #b5433a;
-    border: none;
-    border-radius: 8px;
-    width: 38px;
-    height: 38px;
-    font-size: 18px;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .add-btn {
-    width: 100%;
-    margin-top: 12px;
-    padding: 10px;
-    border: 1px dashed #1f6f4d;
-    background: #f1f8f4;
-    color: #1f6f4d;
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .result {
-    display: flex;
-    justify-content: space-between;
-    padding: 8px 0;
-    font-size: 14px;
-    border-bottom: 1px solid #f2ede2;
-  }
-  .result:last-of-type { border-bottom: none; }
-  .result .label { color: #55493f; }
-  .result .val { font-weight: 600; }
-  .result.neg .val { color: #b5433a; }
-  .keep-box {
-    background: #1f6f4d;
-    color: white;
-    border-radius: 12px;
-    padding: 18px;
-    text-align: center;
-    margin-top: 4px;
-  }
-  .keep-box .amt { font-size: 32px; font-weight: 700; }
-  .keep-box .lbl { font-size: 12px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.05em; margin-top: 2px; }
+  .res:last-child { border-bottom: none; }
+  .resl { color: #55493f; }
+  .resv { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .resv.neg { color: #b5433a; }
+  .sml { display: block; font-size: 11px; color: #a89e91; margin-top: 2px; }
   .note { font-size: 12px; color: #a89e91; margin-top: 14px; line-height: 1.4; }
-  .save-status {
-    font-size: 12px;
-    color: #1f6f4d;
-    text-align: center;
-    margin-top: 8px;
-    min-height: 16px;
+  .foot { font-size: 11px; color: #b3a999; text-align: center; line-height: 1.5; padding: 6px 0 22px; }
+
+  .keep {
+    background: #1f6f4d; color: #fff; border-radius: 12px; padding: 18px;
+    display: flex; align-items: flex-end; justify-content: space-between; gap: 12px;
+    margin-top: 14px;
   }
-  .save-status.error { color: #b5433a; }
-  .footer-note {
-    font-size: 11px;
-    color: #b3a999;
-    text-align: center;
-    margin-top: 24px;
-    line-height: 1.5;
+  .keep .cap { font-size: 12px; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.05em; }
+  .keep .amt { font-size: 32px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .keep .side { text-align: right; font-size: 12px; opacity: 0.85; line-height: 1.5; }
+
+  /* ── controls ────────────────────────────────────────────── */
+  .pill { display: flex; background: #eae5da; border-radius: 10px; padding: 3px; }
+  .pill button {
+    flex: 1; padding: 9px 0; font: inherit; font-size: 13px; font-weight: 600;
+    border: none; background: transparent; color: #7a7168; border-radius: 8px; cursor: pointer;
+  }
+  .pill button[aria-selected="true"] { background: #fff; color: #1f6f4d; box-shadow: 0 1px 2px rgba(0,0,0,0.08); }
+
+  .row {
+    width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+    padding: 12px 14px; margin-bottom: 8px; font: inherit; text-align: left; cursor: pointer;
+    background: #fff; border: 1px solid #ece6da; border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+  .row[aria-selected="true"] { background: #f1f8f4; border-color: #1f6f4d; }
+  .row .lbl { font-size: 13px; color: #55493f; }
+  .row .val { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .cta {
+    width: 100%; padding: 14px; border: none; background: #1f6f4d; color: #fff;
+    border-radius: 12px; font: inherit; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  .cta:hover { background: #1a5e41; }
+  .cta:disabled { opacity: 0.5; cursor: default; }
+  .add {
+    width: 100%; margin-top: 12px; padding: 10px; border: 1px dashed #1f6f4d;
+    background: #f1f8f4; color: #1f6f4d; border-radius: 8px;
+    font: inherit; font-size: 14px; font-weight: 600; cursor: pointer;
+  }
+  .add:hover { background: #e4f0e8; }
+  .ghost {
+    padding: 6px 4px; border: none; background: transparent; color: #7a7168;
+    font: inherit; font-size: 12px; font-weight: 600; cursor: pointer;
+  }
+  .ghost:hover { color: #262220; }
+  label { display: block; font-size: 13px; color: #55493f; margin-bottom: 4px; }
+  input[type="text"], input[type="number"], select {
+    width: 100%; padding: 10px 12px; font: inherit; font-size: 16px;
+    background: #fffdfa; color: #262220; border: 1px solid #ddd2c2; border-radius: 8px;
+  }
+  select { padding: 10px 8px; font-size: 14px; }
+  input:focus, select:focus { outline: none; border-color: #1f6f4d; }
+  .prefix-wrap { position: relative; }
+  .prefix-wrap .pfx { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: #a89e91; font-size: 15px; }
+  .prefix-wrap input { padding-left: 26px; }
+  .sfx-wrap { position: relative; }
+  .sfx-wrap .sfx { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); color: #a89e91; font-size: 14px; }
+  .sfx-wrap input { padding-right: 32px; }
+  :focus-visible { outline: 2px solid #1f6f4d; outline-offset: 2px; }
+
+  /* ── keypad ──────────────────────────────────────────────── */
+  .pad { flex: none; background: #eae5da; border-top: 1px solid #ddd2c2; padding: 10px 10px calc(6px + env(safe-area-inset-bottom)); }
+  .pad-cap { text-align: center; font-size: 11px; color: #7a7168; margin-bottom: 8px; }
+  .pad-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; max-width: 460px; margin: 0 auto; }
+  .pad-grid button {
+    height: 50px; font: inherit; font-size: 22px; font-weight: 500; color: #262220;
+    background: #fff; border: 1px solid #ece6da; border-radius: 10px; cursor: pointer;
+  }
+  .pad-grid button:active { background: #f1f8f4; }
+
+  /* ── tab bar ─────────────────────────────────────────────── */
+  .tabbar { flex: none; display: flex; background: #fff; border-top: 1px solid #ece6da; }
+  .tabbar button {
+    flex: 1; padding: 10px 0 calc(12px + env(safe-area-inset-bottom));
+    font: inherit; font-size: 11px; font-weight: 600; color: #a89e91;
+    background: none; border: none; cursor: pointer; min-height: 44px;
+  }
+  .tabbar button[aria-selected="true"] { color: #1f6f4d; }
+
+  /* ── donut ───────────────────────────────────────────────── */
+  .donut-wrap { display: flex; align-items: center; gap: 18px; }
+  .donut { position: relative; width: 124px; height: 124px; flex-shrink: 0; border-radius: 50%; }
+  .donut .hole {
+    position: absolute; inset: 19px; background: #fff; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .donut .pct { font-size: 20px; font-weight: 700; color: #1f6f4d; font-variant-numeric: tabular-nums; }
+  .donut .pct-lbl { font-size: 10px; color: #a89e91; text-transform: uppercase; letter-spacing: 0.05em; }
+  .legend { flex: 1; display: flex; flex-direction: column; gap: 12px; }
+  .legend .key { display: flex; align-items: center; gap: 7px; font-size: 13px; color: #55493f; }
+  .legend .sw { width: 10px; height: 10px; border-radius: 3px; }
+  .legend .amt { font-size: 19px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+
+  /* ── calendar ────────────────────────────────────────────── */
+  .cal-head { display: flex; align-items: center; justify-content: space-between; margin: -10px -10px 6px; }
+  .cal-head h2 { margin: 0; }
+  .cal-nav {
+    width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;
+    font: inherit; font-size: 20px; font-weight: 700; color: #1f6f4d;
+    background: none; border: none; cursor: pointer;
+  }
+  .cal-nav:disabled { color: #d9cfc0; cursor: default; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+  .cal-dow { text-align: center; font-size: 10px; color: #a89e91; text-transform: uppercase; margin-bottom: 4px; }
+  .cal-cell {
+    height: 40px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    font: inherit; font-size: 13px; color: #a89e91; background: transparent;
+    border: none; border-radius: 8px; cursor: pointer;
+  }
+  .cal-cell.blank { visibility: hidden; }
+  .cal-cell.has { color: #262220; font-weight: 600; }
+  .cal-cell.range { background: #e4f0e8; }
+  .cal-cell.edge { background: #1f6f4d; color: #fff; }
+  .cal-cell .dot { width: 5px; height: 5px; border-radius: 50%; background: transparent; }
+  .cal-cell.has .dot { background: #1f6f4d; }
+  .cal-cell.edge .dot { background: rgba(255,255,255,0.8); }
+  .presets { display: flex; gap: 6px; margin-bottom: 14px; }
+  .presets button {
+    flex: 1; padding: 9px 4px; font: inherit; font-size: 11.5px; font-weight: 600;
+    background: #fff; color: #1f6f4d; border: 1px solid #ece6da; border-radius: 8px; cursor: pointer;
+  }
+  .presets button[aria-selected="true"] { background: #1f6f4d; color: #fff; border-color: #1f6f4d; }
+  .range-lbl { font-size: 15px; font-weight: 600; color: #262220; margin: 2px 0 12px; }
+
+  /* ── rule editor ─────────────────────────────────────────── */
+  .rule + .rule { border-top: 1px dashed #ece6da; margin-top: 10px; padding-top: 10px; }
+  .rule-top { display: flex; gap: 8px; align-items: flex-end; }
+  .rule-top .f { flex: 1; }
+  .rule-top .f.rate { max-width: 92px; }
+  .rule-top label, .rule-basis label { margin-bottom: 4px; }
+  .rule-basis { margin-top: 10px; }
+  .rule-basis label { margin-top: 10px; }
+  .rm {
+    width: 40px; height: 40px; flex-shrink: 0; font: inherit; font-size: 18px;
+    background: #f6e9e7; color: #b5433a; border: none; border-radius: 8px; cursor: pointer;
+  }
+  .status { font-size: 12px; color: #1f6f4d; text-align: center; margin-top: 10px; min-height: 16px; }
+  .status.error { color: #b5433a; }
+
+  .hide { display: none !important; }
+  .kbd-hint { display: none; font-size: 12px; color: #a89e91; margin: -2px 0 12px; }
+
+  /* ── desktop ─────────────────────────────────────────────── */
+  @media (min-width: 900px) {
+    .wrap { max-width: 1000px; padding: 0 32px; }
+    .head { padding-top: 0; }
+    .top-nav {
+      display: block; background: #fff; border-bottom: 1px solid #ece6da;
+    }
+    .top-nav .inner {
+      max-width: 1000px; margin: 0 auto; padding: 0 32px;
+      display: flex; align-items: center; gap: 28px; height: 60px;
+    }
+    .top-nav .brand { font-size: 16px; font-weight: 700; color: #1f6f4d; margin-right: auto; }
+    .top-nav button {
+      padding: 8px 2px; font: inherit; font-size: 14px; font-weight: 600; color: #7a7168;
+      background: none; border: none; border-bottom: 2px solid transparent; cursor: pointer; min-height: 44px;
+    }
+    .top-nav button[aria-selected="true"] { color: #1f6f4d; border-bottom-color: #1f6f4d; }
+    .tabbar { display: none; }
+    .scroll { padding-top: 32px; }
+    .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    .cols-3 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; align-items: start; }
+    .pad { display: none !important; }
+    .kbd-hint { display: block; }
+    .keep .amt { font-size: 36px; }
+    .cal-cell { height: 48px; }
   }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <h1>Server Tip Pool Calculator</h1>
-  <div class="sub">Set up your restaurant's tip-out rules once, then use it every shift</div>
 
-  <div class="tabs">
-    <div class="tab active" data-tab="calc">Calculate</div>
-    <div class="tab" data-tab="setup">Setup Rules</div>
+<div class="app">
+  <nav class="top-nav">
+    <div class="inner">
+      <span class="brand">Tip Pool</span>
+      <button type="button" data-tab="shift" aria-selected="true">Shift</button>
+      <button type="button" data-tab="history" aria-selected="false">History</button>
+      <button type="button" data-tab="rules" aria-selected="false">Rules</button>
+    </div>
+  </nav>
+
+  <div class="scroll" id="scroll">
+    <!-- SHIFT -->
+    <section id="panel-shift" class="wrap">
+      <div class="head">
+        <h1>Tonight</h1>
+        <div class="sub" id="todayLabel"></div>
+      </div>
+      <div class="cols" style="margin-top:16px">
+        <div>
+          <div id="fieldRows"></div>
+          <div class="kbd-hint">Selected row highlighted — type on your keyboard to enter it.</div>
+          <button type="button" class="cta" id="saveShift">Save shift to log</button>
+          <div class="status" id="shiftStatus"></div>
+        </div>
+        <div>
+          <div class="card">
+            <h2>Breakdown</h2>
+            <div id="breakdown"></div>
+            <div class="keep">
+              <div>
+                <div class="cap">You keep</div>
+                <div class="amt" id="keepAmt">$0.00</div>
+              </div>
+              <div class="side">Tipped out<br><span id="outAmt">$0.00</span></div>
+            </div>
+            <div class="note">Full total tips still count as reportable/taxable income, regardless of what gets tipped out.</div>
+          </div>
+        </div>
+      </div>
+      <div class="foot">Estimates only — confirm exact figures with your paycheck or manager.</div>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="panel-history" class="wrap hide">
+      <div class="head">
+        <h1>History</h1>
+        <div class="sub" id="periodLabel"></div>
+      </div>
+      <div class="pill" id="periodPill" style="margin:16px 0 14px">
+        <button type="button" data-period="week" aria-selected="true">Week</button>
+        <button type="button" data-period="month" aria-selected="false">Month</button>
+        <button type="button" data-period="year" aria-selected="false">Year</button>
+      </div>
+      <div class="cols-3">
+        <div>
+          <div class="card">
+            <h2>Kept vs. tipped out</h2>
+            <div class="donut-wrap">
+              <div class="donut" id="donut">
+                <div class="hole">
+                  <div class="pct" id="donutPct">0%</div>
+                  <div class="pct-lbl">kept</div>
+                </div>
+              </div>
+              <div class="legend">
+                <div>
+                  <div class="key"><span class="sw" style="background:#1f6f4d"></span>You kept</div>
+                  <div class="amt" id="legendKeep">$0.00</div>
+                </div>
+                <div>
+                  <div class="key"><span class="sw" style="background:#d9cfc0"></span><span id="legendOutLbl">Tipped out</span></div>
+                  <div class="amt" id="legendOut" style="color:#b5433a">$0.00</div>
+                </div>
+              </div>
+            </div>
+            <div class="note" id="periodNote"></div>
+          </div>
+
+          <div class="card">
+            <h2>Averages</h2>
+            <div class="res"><span class="resl">Kept per shift</span><span class="resv" id="avgKeep">$0.00</span></div>
+            <div class="res"><span class="resl">Tips per shift</span><span class="resv" id="avgTips">$0.00</span></div>
+            <div class="res"><span class="resl">Best shift<span class="sml" id="bestLabel">—</span></span><span class="resv" id="bestKeep">$0.00</span></div>
+          </div>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="cal-head">
+              <button type="button" class="cal-nav" id="calPrev" aria-label="Previous month">&lsaquo;</button>
+              <h2 id="calLabel">—</h2>
+              <button type="button" class="cal-nav" id="calNext" aria-label="Next month">&rsaquo;</button>
+            </div>
+            <div class="cal-grid" id="calDow"></div>
+            <div class="cal-grid" id="calGrid"></div>
+            <div class="note">A dot marks a shift you logged. Tap a start date, then an end date, to set a pay period.</div>
+          </div>
+
+          <div class="card">
+            <div style="display:flex;align-items:baseline;justify-content:space-between;gap:10px">
+              <h2 style="margin:0">Pay period estimate</h2>
+              <button type="button" class="ghost" id="clearRange">Clear</button>
+            </div>
+            <div class="range-lbl" id="rangeLabel">No pay period selected</div>
+            <div class="presets" id="presets"></div>
+            <div id="rangeBody"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recent shifts</h2>
+        <div id="recent"></div>
+      </div>
+      <div class="foot">Estimates only — confirm exact figures with your paycheck or manager.</div>
+    </section>
+
+    <!-- RULES -->
+    <section id="panel-rules" class="wrap hide">
+      <div class="head">
+        <h1>Setup Rules</h1>
+        <div class="sub">Your restaurant's tip-out policy</div>
+      </div>
+      <div class="cols" style="margin-top:16px">
+        <div>
+          <div class="card">
+            <h2>Your Tip-Out Rules</h2>
+            <div id="ruleEditor"></div>
+            <button type="button" class="add" id="addRule">+ Add tip-out rule</button>
+            <div class="status" id="saveStatus"></div>
+          </div>
+        </div>
+        <div>
+          <div class="card">
+            <h2>Pay schedule</h2>
+            <label for="paySchedule">Pay period length</label>
+            <select id="paySchedule">
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Every two weeks</option>
+              <option value="semimonthly">Twice a month (1st &amp; 16th)</option>
+            </select>
+            <div class="note">Used to suggest pay periods on the History tab.</div>
+          </div>
+          <div class="card">
+            <h2>Data</h2>
+            <div class="res"><span class="resl">Shifts logged<span class="sml">Stored on this device only</span></span><span class="resv" id="shiftCount">0</span></div>
+            <button type="button" class="add" id="clearHistory" style="border-color:#b5433a;background:#f6e9e7;color:#b5433a">Delete all shift history</button>
+          </div>
+        </div>
+      </div>
+      <div class="foot">Rules apply either as a % of your total tips, or a % of sales in a category you enter each shift (e.g. alcohol sales). Set it up once for your restaurant's policy.</div>
+    </section>
   </div>
 
-  <!-- CALCULATE PANEL -->
-  <div class="panel active" id="panel-calc">
-    <div class="card">
-      <h2>Shift Numbers</h2>
-      <label for="totalTips">Total tips collected</label>
-      <div class="input-row">
-        <span class="prefix">$</span>
-        <input type="number" id="totalTips" class="with-prefix" placeholder="0.00" step="0.01" min="0" inputmode="decimal">
-      </div>
-      <div id="basisInputs"></div>
-    </div>
-
-    <div class="card">
-      <h2>Breakdown</h2>
-      <div class="result">
-        <span class="label">Total tips</span>
-        <span class="val" id="rTotal">$0.00</span>
-      </div>
-      <div id="ruleResults"></div>
-      <div class="keep-box">
-        <div class="amt" id="rKeep">$0.00</div>
-        <div class="lbl">You keep</div>
-      </div>
-      <div class="note">
-        Full total tips still count as reportable/taxable income, regardless of what gets tipped out.
-      </div>
-    </div>
+  <div class="pad hide" id="pad">
+    <div class="pad-cap" id="padCap">Entering</div>
+    <div class="pad-grid" id="padGrid"></div>
   </div>
 
-  <!-- SETUP PANEL -->
-  <div class="panel" id="panel-setup">
-    <div class="card">
-      <h2>Your Tip-Out Rules</h2>
-      <div id="ruleEditor"></div>
-      <button class="add-btn" id="addRuleBtn" type="button">+ Add tip-out rule</button>
-      <div class="save-status" id="saveStatus"></div>
-    </div>
-    <div class="footer-note">
-      Rules apply either as a % of your total tips, or a % of sales in a category you enter each shift (e.g. alcohol sales). Set it up once for your restaurant's policy.
-    </div>
-  </div>
-
-  <div class="footer-note" style="margin-top:20px;">
-    Estimates only — confirm exact figures with your paycheck or manager.
-  </div>
+  <nav class="tabbar">
+    <button type="button" data-tab="shift" aria-selected="true">Shift</button>
+    <button type="button" data-tab="history" aria-selected="false">History</button>
+    <button type="button" data-tab="rules" aria-selected="false">Rules</button>
+  </nav>
 </div>
 
 <script>
-  const $ = id => document.getElementById(id);
+(function () {
+  "use strict";
 
-  const STORAGE_KEY = "tip-calc-rules";
+  var $ = function (id) { return document.getElementById(id); };
+  var RULES_KEY = "tip-calc-rules";
+  var HISTORY_KEY = "tip-calc-history";
+  var PREFS_KEY = "tip-calc-prefs";
+  var SEEDED_KEY = "tip-calc-seeded";
 
-  const DEFAULT_RULES = [
+  var DEFAULT_RULES = [
     { name: "FOH Support", basis: "sales", basisLabel: "Food / non-alcohol sales", rate: 5.7 },
     { name: "Bartender", basis: "sales", basisLabel: "Alcohol sales", rate: 6.2 }
   ];
 
-  let rules = JSON.parse(JSON.stringify(DEFAULT_RULES));
-  let basisValues = {}; // keyed by rule index, holds entered sales amounts
+  var MONTH_NAMES = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  var MONTH_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+  var DAY_NAMES = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
+  // ── storage ────────────────────────────────────────────────
+  function detectStorage() {
+    try {
+      var k = "__tip_calc_storage_test__";
+      window.localStorage.setItem(k, "1");
+      window.localStorage.removeItem(k);
+      return true;
+    } catch (e) { return false; }
+  }
+  var storageAvailable = detectStorage();
+
+  function read(key) {
+    if (!storageAvailable) return null;
+    try {
+      var raw = window.localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { console.error("Failed to read " + key, e); return null; }
+  }
+  function write(key, value, statusEl) {
+    if (!storageAvailable) {
+      if (statusEl) setStatus(statusEl, "Storage unavailable — changes won't be saved", true);
+      return;
+    }
+    try {
+      window.localStorage.setItem(key, JSON.stringify(value));
+      if (statusEl) { setStatus(statusEl, "Saved", false); setTimeout(function () { setStatus(statusEl, "", false); }, 1500); }
+    } catch (e) {
+      console.error("Storage error:", e);
+      if (statusEl) setStatus(statusEl, "Couldn't save (storage full or unavailable)", true);
+    }
+  }
+  function setStatus(el, text, isError) {
+    el.textContent = text;
+    el.className = "status" + (isError ? " error" : "");
+  }
+
+  // ── helpers ────────────────────────────────────────────────
   function fmt(n) {
-    return "$" + n.toLocaleString("en-US", {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    return "$" + Number(n).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   }
-
-  function escapeHtml(str) {
-    return String(str).replace(/[&<>"']/g, ch => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[ch]));
-  }
-
-  // Clamp a number into [min, max], falling back to `fallback` if not finite.
   function clampNumber(value, min, max, fallback) {
-    const n = parseFloat(value);
+    var n = parseFloat(value);
     if (!isFinite(n)) return fallback;
     return Math.min(max, Math.max(min, n));
   }
+  function num(v) { return clampNumber(String(v == null ? "" : v).replace(/[^0-9.]/g, ""), 0, Number.MAX_SAFE_INTEGER, 0); }
+  function pad2(n) { return String(n).length < 2 ? "0" + n : String(n); }
+  function isoOf(date) { return date.getFullYear() + "-" + pad2(date.getMonth() + 1) + "-" + pad2(date.getDate()); }
+  function iso(y, m, d) { return y + "-" + pad2(m + 1) + "-" + pad2(d); }
+  function parseIso(s) { var p = s.split("-"); return { y: +p[0], m: +p[1] - 1, d: +p[2] }; }
+  function pretty(s) { if (!s) return ""; var p = parseIso(s); return MONTH_SHORT[p.m] + " " + p.d; }
+  function dayName(s) { var p = parseIso(s); return DAY_NAMES[new Date(Date.UTC(p.y, p.m, p.d)).getUTCDay()]; }
+  function shiftIso(baseIso, delta) {
+    var p = parseIso(baseIso);
+    var dt = new Date(Date.UTC(p.y, p.m, p.d + delta));
+    return dt.getUTCFullYear() + "-" + pad2(dt.getUTCMonth() + 1) + "-" + pad2(dt.getUTCDate());
+  }
 
-  // Validate/normalize rules loaded from storage so corrupted or
-  // hand-edited data can't crash the renderer.
   function sanitizeRules(input) {
     if (!Array.isArray(input)) return null;
-    const cleaned = input
-      .filter(r => r && typeof r === "object")
-      .map(r => ({
+    var cleaned = input.filter(function (r) { return r && typeof r === "object"; }).map(function (r) {
+      return {
         name: typeof r.name === "string" ? r.name.slice(0, 60) : "Rule",
         basis: r.basis === "sales" ? "sales" : "tips",
         basisLabel: typeof r.basisLabel === "string" ? r.basisLabel.slice(0, 60) : "",
         rate: clampNumber(r.rate, 0, 100, 0)
-      }));
+      };
+    });
     return cleaned.length ? cleaned : null;
   }
 
-  // ---------- Tabs ----------
-  document.querySelectorAll(".tab").forEach(tab => {
-    tab.addEventListener("click", () => {
-      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
-      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
-      tab.classList.add("active");
-      $("panel-" + tab.dataset.tab).classList.add("active");
+  function sanitizeHistory(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) return {};
+    var out = {};
+    Object.keys(input).forEach(function (k) {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(k)) return;
+      var e = input[k];
+      if (!e || typeof e !== "object") return;
+      out[k] = {
+        tips: clampNumber(e.tips, 0, Number.MAX_SAFE_INTEGER, 0),
+        out: clampNumber(e.out, 0, Number.MAX_SAFE_INTEGER, 0),
+        keep: clampNumber(e.keep, 0, Number.MAX_SAFE_INTEGER, 0),
+        sales: (e.sales && typeof e.sales === "object") ? e.sales : {}
+      };
+    });
+    return out;
+  }
+
+  // ── state ──────────────────────────────────────────────────
+  var rules = sanitizeRules(read(RULES_KEY)) || JSON.parse(JSON.stringify(DEFAULT_RULES));
+  var history = sanitizeHistory(read(HISTORY_KEY));
+  var prefs = read(PREFS_KEY) || { paySchedule: "biweekly" };
+
+  // First run: seed a fortnight of example shifts so the app isn't empty.
+  // Deleted for good via "Delete all shift history".
+  if (!Object.keys(history).length && storageAvailable && !window.localStorage.getItem(SEEDED_KEY)) {
+    var today = new Date();
+    var seed = [[1, 212, 1180, 520], [4, 198.25, 1010, 430], [5, 341, 1620, 720], [6, 386.5, 1810, 860],
+                [8, 214, 1120, 480], [11, 379, 1740, 810], [12, 305, 1480, 660], [15, 451.25, 2050, 980],
+                [18, 388, 1790, 840], [19, 315, 1510, 690]];
+    seed.forEach(function (s) {
+      var date = shiftIso(isoOf(today), -s[0]);
+      var entry = computeFrom(s[1], { "Food / non-alcohol sales": s[2], "Alcohol sales": s[3] });
+      history[date] = entry;
+    });
+    write(HISTORY_KEY, history);
+    try { window.localStorage.setItem(SEEDED_KEY, "1"); } catch (e) {}
+  }
+
+  var tab = "shift";
+  var period = "week";
+  var draft = { tips: "", sales: {} };
+  var activeField = "tips";
+  var dirtyField = null;
+  var monthIdx = 0;
+  var months = [];
+  var rangeStart = null;
+  var rangeEnd = null;
+
+  function computeFrom(tips, salesByLabel) {
+    var total = num(tips), out = 0;
+    rules.forEach(function (r) {
+      var base = r.basis === "tips" ? total : num(salesByLabel[r.basisLabel || r.name]);
+      out += base * (r.rate / 100);
+    });
+    return { tips: total, out: out, keep: Math.max(0, total - out), sales: salesByLabel };
+  }
+
+  // ── shift screen ───────────────────────────────────────────
+  function salesRules() {
+    return rules.map(function (r, i) { return { rule: r, i: i }; }).filter(function (x) { return x.rule.basis === "sales"; });
+  }
+  function fieldList() {
+    var list = [{ key: "tips", label: "Total tips collected" }];
+    salesRules().forEach(function (x) {
+      list.push({ key: "sales:" + x.i, label: x.rule.basisLabel || ("Sales for " + x.rule.name) });
+    });
+    return list;
+  }
+  function fieldValue(key) {
+    if (key === "tips") return draft.tips;
+    return draft.sales[key.slice(6)] || "";
+  }
+  function setFieldValue(key, value) {
+    if (key === "tips") draft.tips = value;
+    else draft.sales[key.slice(6)] = value;
+  }
+
+  function renderFieldRows() {
+    var host = $("fieldRows");
+    host.innerHTML = "";
+    fieldList().forEach(function (f) {
+      var btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "row";
+      btn.setAttribute("aria-selected", f.key === activeField ? "true" : "false");
+      var lbl = document.createElement("span");
+      lbl.className = "lbl";
+      lbl.textContent = f.label;
+      var val = document.createElement("span");
+      val.className = "val";
+      val.textContent = "$" + (fieldValue(f.key) || "0");
+      btn.appendChild(lbl);
+      btn.appendChild(val);
+      btn.addEventListener("click", function () {
+        activeField = f.key;
+        dirtyField = null;
+        renderFieldRows();
+        renderPad();
+      });
+      host.appendChild(btn);
+    });
+  }
+
+  function renderPad() {
+    var visible = tab === "shift";
+    $("pad").className = "pad" + (visible ? "" : " hide");
+    if (!visible) return;
+    var current = fieldList().filter(function (f) { return f.key === activeField; })[0] || fieldList()[0];
+    activeField = current.key;
+    $("padCap").textContent = "Entering · " + current.label;
+    var grid = $("padGrid");
+    if (grid.childNodes.length) return;
+    ["1","2","3","4","5","6","7","8","9",".","0","\u232B"].forEach(function (label) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      b.addEventListener("click", function () { press(label); });
+      grid.appendChild(b);
+    });
+  }
+
+  function press(label) {
+    var cur = dirtyField === activeField ? String(fieldValue(activeField) || "") : "";
+    var next;
+    if (label === "\u232B") next = cur.slice(0, -1);
+    else if (label === ".") next = cur.indexOf(".") > -1 ? cur : (cur || "0") + ".";
+    else {
+      var dot = cur.indexOf(".");
+      next = (dot > -1 && cur.length - dot > 2) ? cur : cur + label;
+    }
+    setFieldValue(activeField, next);
+    dirtyField = activeField;
+    renderFieldRows();
+    renderBreakdown();
+  }
+
+  function draftSalesByLabel() {
+    var map = {};
+    salesRules().forEach(function (x) {
+      map[x.rule.basisLabel || x.rule.name] = draft.sales["" + x.i] || 0;
+    });
+    return map;
+  }
+
+  function renderBreakdown() {
+    var total = num(draft.tips), out = 0;
+    var host = $("breakdown");
+    host.innerHTML = "";
+    host.appendChild(resultRow("Total tips", null, fmt(total), false));
+    rules.forEach(function (r, i) {
+      var base = r.basis === "tips" ? total : num(draft.sales["" + i]);
+      var amount = base * (r.rate / 100);
+      out += amount;
+      var sub = r.rate + "% of " + fmt(base).replace(".00", "") + (r.basis === "tips" ? " total tips" : " " + (r.basisLabel || "sales").toLowerCase());
+      host.appendChild(resultRow(r.name + " (" + r.rate + "%)", sub, "\u2212" + fmt(amount), true));
+    });
+    $("keepAmt").textContent = fmt(Math.max(0, total - out));
+    $("outAmt").textContent = fmt(out);
+    $("saveShift").disabled = total <= 0;
+  }
+
+  function resultRow(label, sub, value, negative) {
+    var row = document.createElement("div");
+    row.className = "res";
+    var l = document.createElement("span");
+    l.className = "resl";
+    l.textContent = label;
+    if (sub) {
+      var s = document.createElement("span");
+      s.className = "sml";
+      s.textContent = sub;
+      l.appendChild(s);
+    }
+    var v = document.createElement("span");
+    v.className = "resv" + (negative ? " neg" : "");
+    v.textContent = value;
+    row.appendChild(l);
+    row.appendChild(v);
+    return row;
+  }
+
+  $("saveShift").addEventListener("click", function () {
+    var date = isoOf(new Date());
+    history[date] = computeFrom(draft.tips, draftSalesByLabel());
+    write(HISTORY_KEY, history);
+    setStatus($("shiftStatus"), "Saved to shift log \u2713", false);
+    setTimeout(function () { setStatus($("shiftStatus"), "", false); }, 2000);
+    buildMonths();
+    renderHistory();
+    renderRules();
+  });
+
+  // ── history: period ────────────────────────────────────────
+  function entriesBetween(startIso, endIso) {
+    return Object.keys(history).filter(function (k) { return k >= startIso && k <= endIso; }).sort();
+  }
+  function periodRange() {
+    var todayIso = isoOf(new Date());
+    if (period === "week") return { start: shiftIso(todayIso, -6), end: todayIso, label: "Last 7 days" };
+    if (period === "month") return { start: shiftIso(todayIso, -29), end: todayIso, label: "Last 30 days" };
+    var y = parseIso(todayIso).y;
+    return { start: y + "-01-01", end: todayIso, label: y + " to date" };
+  }
+
+  function renderHistory() {
+    var r = periodRange();
+    var keys = entriesBetween(r.start, r.end);
+    var tips = 0, out = 0, keep = 0, best = null;
+    keys.forEach(function (k) {
+      var e = history[k];
+      tips += e.tips; out += e.out; keep += e.keep;
+      if (!best || e.keep > history[best].keep) best = k;
+    });
+    var pct = tips > 0 ? Math.round((keep / tips) * 1000) / 10 : 0;
+
+    $("periodLabel").textContent = r.label + " \u00b7 " + keys.length + (keys.length === 1 ? " shift" : " shifts");
+    $("donut").style.background = "conic-gradient(#1f6f4d 0 " + pct + "%, #d9cfc0 " + pct + "% 100%)";
+    $("donutPct").textContent = pct + "%";
+    $("legendKeep").textContent = fmt(keep);
+    $("legendOut").textContent = fmt(out);
+    $("legendOutLbl").textContent = "Tipped out \u00b7 " + (Math.round((100 - pct) * 10) / 10) + "%";
+    $("periodNote").textContent = fmt(tips) + " collected in total. The full amount still counts as reportable income.";
+    $("avgKeep").textContent = fmt(keys.length ? keep / keys.length : 0);
+    $("avgTips").textContent = fmt(keys.length ? tips / keys.length : 0);
+    $("bestKeep").textContent = best ? fmt(history[best].keep) : fmt(0);
+    $("bestLabel").textContent = best ? dayName(best) + ", " + pretty(best) : "No shifts logged yet";
+
+    var recent = $("recent");
+    recent.innerHTML = "";
+    var all = Object.keys(history).sort().reverse().slice(0, 8);
+    if (!all.length) {
+      var empty = document.createElement("div");
+      empty.className = "note";
+      empty.style.marginTop = "0";
+      empty.textContent = "No shifts logged yet. Enter tonight's numbers on the Shift tab and save.";
+      recent.appendChild(empty);
+    } else {
+      all.forEach(function (k) {
+        var e = history[k];
+        recent.appendChild(resultRow(dayName(k), pretty(k) + " \u00b7 " + fmt(e.tips) + " in tips", fmt(e.keep), false));
+      });
+    }
+    renderCalendar();
+    renderRange();
+  }
+
+  Array.prototype.forEach.call($("periodPill").querySelectorAll("button"), function (btn) {
+    btn.addEventListener("click", function () {
+      period = btn.dataset.period;
+      Array.prototype.forEach.call($("periodPill").querySelectorAll("button"), function (b) {
+        b.setAttribute("aria-selected", b === btn ? "true" : "false");
+      });
+      renderHistory();
     });
   });
 
-  // ---------- Rule Editor (Setup tab) ----------
-  function renderRuleEditor() {
-    const container = $("ruleEditor");
-    container.innerHTML = "";
-    rules.forEach((rule, i) => {
-      const row = document.createElement("div");
-      row.className = "rule-row";
-      row.innerHTML = `
-        <div class="field">
-          <label>Recipient / label</label>
-          <input type="text" data-idx="${i}" data-field="name" value="${escapeHtml(rule.name)}" placeholder="e.g. Bartender" maxlength="60">
-        </div>
-        <div class="field" style="max-width:90px;">
-          <label>Rate</label>
-          <div class="input-row">
-            <input type="number" class="with-suffix" data-idx="${i}" data-field="rate" value="${rule.rate}" step="0.1" min="0" max="100" inputmode="decimal">
-            <span class="suffix">%</span>
-          </div>
-        </div>
-        <button class="rm-btn" data-idx="${i}" type="button" title="Remove rule">&times;</button>
-      `;
-      container.appendChild(row);
-
-      const basisRow = document.createElement("div");
-      basisRow.style.marginTop = "8px";
-      basisRow.innerHTML = `
-        <label>Applies to</label>
-        <select data-idx="${i}" data-field="basis">
-          <option value="tips" ${rule.basis === "tips" ? "selected" : ""}>% of my total tips</option>
-          <option value="sales" ${rule.basis === "sales" ? "selected" : ""}>% of a sales category</option>
-        </select>
-        ${rule.basis === "sales" ? `
-          <label>Sales category name</label>
-          <input type="text" data-idx="${i}" data-field="basisLabel" value="${escapeHtml(rule.basisLabel || '')}" placeholder="e.g. Alcohol sales" maxlength="60">
-        ` : ""}
-      `;
-      container.appendChild(basisRow);
-    });
-
-    container.querySelectorAll("input, select").forEach(el => {
-      el.addEventListener("input", handleRuleFieldChange);
-      el.addEventListener("change", handleRuleFieldChange);
-    });
-    container.querySelectorAll(".rm-btn").forEach(btn => {
-      btn.addEventListener("click", () => {
-        rules.splice(parseInt(btn.dataset.idx, 10), 1);
-        renderRuleEditor();
-        renderCalcInputs();
-        saveSettings();
-      });
-    });
-  }
-
-  function handleRuleFieldChange(e) {
-    const idx = parseInt(e.target.dataset.idx, 10);
-    const field = e.target.dataset.field;
-    let val = e.target.value;
-    if (field === "rate") val = clampNumber(val, 0, 100, 0);
-    if (field === "name") val = val.slice(0, 60);
-    if (field === "basisLabel") val = val.slice(0, 60);
-    rules[idx][field] = val;
-    if (field === "basis") {
-      renderRuleEditor(); // basis toggle changes shown fields
+  // ── history: calendar ──────────────────────────────────────
+  function buildMonths() {
+    var todayIso = isoOf(new Date());
+    var t = parseIso(todayIso);
+    var keys = Object.keys(history).sort();
+    var first = keys.length ? parseIso(keys[0]) : { y: t.y, m: t.m };
+    months = [];
+    var y = first.y, m = first.m;
+    while (y < t.y || (y === t.y && m <= t.m)) {
+      months.push({ y: y, m: m, label: MONTH_NAMES[m] + " " + y });
+      m++; if (m > 11) { m = 0; y++; }
     }
-    renderCalcInputs();
-    calc();
-    saveSettings();
+    if (!months.length) months.push({ y: t.y, m: t.m, label: MONTH_NAMES[t.m] + " " + t.y });
+    monthIdx = Math.min(months.length - 1, Math.max(0, monthIdx || months.length - 1));
   }
 
-  $("addRuleBtn").addEventListener("click", () => {
-    rules.push({ name: "New rule", basis: "tips", basisLabel: "", rate: 5 });
-    renderRuleEditor();
-    renderCalcInputs();
-    saveSettings();
+  function renderCalendar() {
+    monthIdx = Math.min(months.length - 1, Math.max(0, monthIdx));
+    var M = months[monthIdx];
+    $("calLabel").textContent = M.label.toUpperCase();
+    $("calPrev").disabled = monthIdx === 0;
+    $("calNext").disabled = monthIdx === months.length - 1;
+
+    var dow = $("calDow");
+    if (!dow.childNodes.length) {
+      ["S","M","T","W","T","F","S"].forEach(function (d) {
+        var el = document.createElement("div");
+        el.className = "cal-dow";
+        el.textContent = d;
+        dow.appendChild(el);
+      });
+    }
+
+    var grid = $("calGrid");
+    grid.innerHTML = "";
+    var firstDay = new Date(Date.UTC(M.y, M.m, 1)).getUTCDay();
+    var daysIn = new Date(Date.UTC(M.y, M.m + 1, 0)).getUTCDate();
+    for (var i = 0; i < firstDay; i++) {
+      var blank = document.createElement("div");
+      blank.className = "cal-cell blank";
+      grid.appendChild(blank);
+    }
+    for (var day = 1; day <= daysIn; day++) {
+      (function (day) {
+        var date = iso(M.y, M.m, day);
+        var entry = history[date];
+        var isEdge = date === rangeStart || date === rangeEnd;
+        var inRange = rangeStart && rangeEnd && date > rangeStart && date < rangeEnd;
+        var cell = document.createElement("button");
+        cell.type = "button";
+        cell.className = "cal-cell" + (entry ? " has" : "") + (inRange ? " range" : "") + (isEdge ? " edge" : "");
+        cell.setAttribute("aria-label", pretty(date) + (entry ? ", " + fmt(entry.keep) + " kept" : ""));
+        var n = document.createElement("span");
+        n.textContent = String(day);
+        var dot = document.createElement("span");
+        dot.className = "dot";
+        cell.appendChild(n);
+        cell.appendChild(dot);
+        cell.addEventListener("click", function () { pickDay(date); });
+        grid.appendChild(cell);
+      })(day);
+    }
+  }
+
+  function pickDay(date) {
+    if (!rangeStart || (rangeStart && rangeEnd)) { rangeStart = date; rangeEnd = null; }
+    else if (date < rangeStart) { rangeEnd = rangeStart; rangeStart = date; }
+    else rangeEnd = date;
+    renderCalendar();
+    renderRange();
+  }
+
+  $("calPrev").addEventListener("click", function () { monthIdx--; renderCalendar(); });
+  $("calNext").addEventListener("click", function () { monthIdx++; renderCalendar(); });
+  $("clearRange").addEventListener("click", function () {
+    rangeStart = null; rangeEnd = null;
+    renderCalendar(); renderRange();
   });
 
-  // ---------- Calculate tab inputs (sales-based rules need shift inputs) ----------
-  function renderCalcInputs() {
-    const container = $("basisInputs");
-    container.innerHTML = "";
-    rules.forEach((rule, i) => {
-      if (rule.basis === "sales") {
-        const label = document.createElement("label");
-        label.textContent = rule.basisLabel || ("Sales for " + rule.name);
-        const row = document.createElement("div");
-        row.className = "input-row";
-        row.innerHTML = `<span class="prefix">$</span><input type="number" class="with-prefix basis-input" data-idx="${i}" placeholder="0.00" step="0.01" min="0" inputmode="decimal">`;
-        container.appendChild(label);
-        container.appendChild(row);
-      }
-    });
-    container.querySelectorAll(".basis-input").forEach(inp => {
-      const idx = inp.dataset.idx;
-      if (basisValues[idx] !== undefined) inp.value = basisValues[idx];
-      inp.addEventListener("input", () => {
-        basisValues[idx] = clampNumber(inp.value, 0, Number.MAX_SAFE_INTEGER, 0);
-        calc();
-      });
-    });
-  }
-
-  // ---------- Calculation ----------
-  function calc() {
-    const total = clampNumber($("totalTips").value, 0, Number.MAX_SAFE_INTEGER, 0);
-    let deducted = 0;
-    const resultsContainer = $("ruleResults");
-    resultsContainer.innerHTML = "";
-
-    rules.forEach((rule, i) => {
-      let amount = 0;
-      if (rule.basis === "tips") {
-        amount = total * (rule.rate / 100);
-      } else {
-        const salesVal = clampNumber(basisValues[i], 0, Number.MAX_SAFE_INTEGER, 0);
-        amount = salesVal * (rule.rate / 100);
-      }
-      deducted += amount;
-
-      const row = document.createElement("div");
-      row.className = "result neg";
-      row.innerHTML = `<span class="label">${escapeHtml(rule.name)} (${rule.rate}%)</span><span class="val">−${fmt(amount)}</span>`;
-      resultsContainer.appendChild(row);
-    });
-
-    const keep = Math.max(0, total - deducted);
-    $("rTotal").textContent = fmt(total);
-    $("rKeep").textContent = fmt(keep);
-  }
-
-  $("totalTips").addEventListener("input", calc);
-
-  // ---------- Persistence (localStorage) ----------
-  // Some browsers (Safari private mode, storage disabled, quota exceeded)
-  // throw on any localStorage access, so feature-detect once up front and
-  // degrade to in-memory-only if it's unavailable.
-  function detectStorage() {
-    try {
-      const testKey = "__tip_calc_storage_test__";
-      window.localStorage.setItem(testKey, "1");
-      window.localStorage.removeItem(testKey);
-      return true;
-    } catch (err) {
-      return false;
+  function presetRanges() {
+    var todayIso = isoOf(new Date());
+    if (prefs.paySchedule === "weekly") {
+      return [
+        { l: "This week", s: shiftIso(todayIso, -6), e: todayIso },
+        { l: "Last week", s: shiftIso(todayIso, -13), e: shiftIso(todayIso, -7) },
+        { l: "Last 30 days", s: shiftIso(todayIso, -29), e: todayIso }
+      ];
     }
+    if (prefs.paySchedule === "semimonthly") {
+      var p = parseIso(todayIso);
+      var lastDay = new Date(Date.UTC(p.y, p.m + 1, 0)).getUTCDate();
+      return [
+        { l: "1st – 15th", s: iso(p.y, p.m, 1), e: iso(p.y, p.m, 15) },
+        { l: "16th – end", s: iso(p.y, p.m, 16), e: iso(p.y, p.m, lastDay) },
+        { l: "Last 30 days", s: shiftIso(todayIso, -29), e: todayIso }
+      ];
+    }
+    return [
+      { l: "Last 14 days", s: shiftIso(todayIso, -13), e: todayIso },
+      { l: "Previous 14", s: shiftIso(todayIso, -27), e: shiftIso(todayIso, -14) },
+      { l: "Last 30 days", s: shiftIso(todayIso, -29), e: todayIso }
+    ];
   }
 
-  const storageAvailable = detectStorage();
-  let saveTimeout;
+  function renderRange() {
+    var host = $("presets");
+    host.innerHTML = "";
+    presetRanges().forEach(function (p) {
+      var b = document.createElement("button");
+      b.type = "button";
+      b.textContent = p.l;
+      b.setAttribute("aria-selected", (rangeStart === p.s && rangeEnd === p.e) ? "true" : "false");
+      b.addEventListener("click", function () {
+        rangeStart = p.s; rangeEnd = p.e;
+        var st = parseIso(p.s);
+        for (var i = 0; i < months.length; i++) if (months[i].y === st.y && months[i].m === st.m) monthIdx = i;
+        renderCalendar(); renderRange();
+      });
+      host.appendChild(b);
+    });
 
-  function setSaveStatus(text, isError) {
-    const el = $("saveStatus");
-    el.textContent = text;
-    el.classList.toggle("error", !!isError);
-  }
-
-  function saveSettings() {
-    if (!storageAvailable) {
-      setSaveStatus("Storage unavailable — changes won't be saved", true);
+    var body = $("rangeBody");
+    body.innerHTML = "";
+    if (rangeStart && !rangeEnd) {
+      $("rangeLabel").textContent = pretty(rangeStart) + " \u2013 select end date";
+      var hint = document.createElement("div");
+      hint.className = "note";
+      hint.style.margin = "0";
+      hint.textContent = "Now tap the last day of the pay period on the calendar above.";
+      body.appendChild(hint);
       return;
     }
-    clearTimeout(saveTimeout);
-    saveTimeout = setTimeout(() => {
-      try {
-        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(rules));
-        setSaveStatus("Saved", false);
-        setTimeout(() => setSaveStatus("", false), 1500);
-      } catch (err) {
-        // Quota exceeded, storage disabled mid-session, etc.
-        console.error("Storage error:", err);
-        setSaveStatus("Couldn't save (storage full or unavailable)", true);
-        setTimeout(() => setSaveStatus("", false), 2500);
-      }
-    }, 400);
-  }
-
-  function loadSettings() {
-    if (storageAvailable) {
-      try {
-        const raw = window.localStorage.getItem(STORAGE_KEY);
-        if (raw) {
-          const sanitized = sanitizeRules(JSON.parse(raw));
-          if (sanitized) rules = sanitized;
-        }
-      } catch (err) {
-        // Corrupted JSON or read error — fall back to defaults.
-        console.error("Failed to load saved settings:", err);
-      }
+    if (!rangeStart) {
+      $("rangeLabel").textContent = "No pay period selected";
+      var hint2 = document.createElement("div");
+      hint2.className = "note";
+      hint2.style.margin = "0";
+      hint2.textContent = "Pick a preset, or tap a start and end date on the calendar.";
+      body.appendChild(hint2);
+      return;
     }
-    renderRuleEditor();
-    renderCalcInputs();
-    calc();
+
+    $("rangeLabel").textContent = pretty(rangeStart) + " \u2013 " + pretty(rangeEnd);
+    var keys = entriesBetween(rangeStart, rangeEnd);
+    var tips = 0, out = 0, keep = 0;
+    keys.forEach(function (k) { tips += history[k].tips; out += history[k].out; keep += history[k].keep; });
+
+    body.appendChild(resultRow("Shifts in period", null, String(keys.length), false));
+    body.appendChild(resultRow("Tips collected", null, fmt(tips), false));
+    body.appendChild(resultRow("Tipped out", null, "\u2212" + fmt(out), true));
+
+    var box = document.createElement("div");
+    box.className = "keep";
+    box.innerHTML = '<div><div class="cap">Estimated take-home</div><div class="amt">' + fmt(keep) + '</div></div>';
+    body.appendChild(box);
+
+    var note = document.createElement("div");
+    note.className = "note";
+    note.textContent = "Tips only \u2014 does not include hourly wages, and taxes have not been withheld.";
+    body.appendChild(note);
   }
 
-  loadSettings();
+  // ── rules ──────────────────────────────────────────────────
+  var saveTimeout;
+  function saveRules() {
+    if (!storageAvailable) { setStatus($("saveStatus"), "Storage unavailable — changes won't be saved", true); return; }
+    clearTimeout(saveTimeout);
+    saveTimeout = setTimeout(function () { write(RULES_KEY, rules, $("saveStatus")); }, 400);
+  }
+
+  function renderRules() {
+    var host = $("ruleEditor");
+    host.innerHTML = "";
+    rules.forEach(function (rule, i) {
+      var block = document.createElement("div");
+      block.className = "rule";
+
+      var top = document.createElement("div");
+      top.className = "rule-top";
+      top.innerHTML =
+        '<div class="f"><label>Recipient / label</label>' +
+        '<input type="text" data-field="name" placeholder="e.g. Bartender" maxlength="60"></div>' +
+        '<div class="f rate"><label>Rate</label><div class="sfx-wrap">' +
+        '<input type="number" data-field="rate" step="0.1" min="0" max="100" inputmode="decimal"><span class="sfx">%</span>' +
+        '</div></div>' +
+        '<button type="button" class="rm" title="Remove rule">\u00d7</button>';
+      top.querySelector('[data-field="name"]').value = rule.name;
+      top.querySelector('[data-field="rate"]').value = rule.rate;
+
+      var basis = document.createElement("div");
+      basis.className = "rule-basis";
+      basis.innerHTML =
+        '<label>Applies to</label>' +
+        '<select data-field="basis">' +
+        '<option value="tips">% of my total tips</option>' +
+        '<option value="sales">% of a sales category</option>' +
+        '</select>' +
+        (rule.basis === "sales"
+          ? '<label>Sales category name</label><input type="text" data-field="basisLabel" placeholder="e.g. Alcohol sales" maxlength="60">'
+          : "");
+      basis.querySelector('[data-field="basis"]').value = rule.basis;
+      if (rule.basis === "sales") basis.querySelector('[data-field="basisLabel"]').value = rule.basisLabel || "";
+
+      block.appendChild(top);
+      block.appendChild(basis);
+      host.appendChild(block);
+
+      Array.prototype.forEach.call(block.querySelectorAll("input, select"), function (el) {
+        var handler = function () {
+          var field = el.dataset.field;
+          var val = el.value;
+          if (field === "rate") val = clampNumber(val, 0, 100, 0);
+          if (field === "name" || field === "basisLabel") val = val.slice(0, 60);
+          rules[i][field] = val;
+          if (field === "basis") renderRules();
+          draft.sales = {};
+          renderFieldRows();
+          renderPad();
+          renderBreakdown();
+          saveRules();
+        };
+        el.addEventListener("input", handler);
+        el.addEventListener("change", handler);
+      });
+
+      block.querySelector(".rm").addEventListener("click", function () {
+        rules.splice(i, 1);
+        if (!rules.length) rules.push({ name: "New rule", basis: "tips", basisLabel: "", rate: 5 });
+        draft.sales = {};
+        renderRules();
+        renderFieldRows();
+        renderPad();
+        renderBreakdown();
+        saveRules();
+      });
+    });
+
+    $("shiftCount").textContent = String(Object.keys(history).length);
+  }
+
+  $("addRule").addEventListener("click", function () {
+    rules.push({ name: "New rule", basis: "tips", basisLabel: "", rate: 5 });
+    renderRules();
+    renderFieldRows();
+    renderPad();
+    renderBreakdown();
+    saveRules();
+  });
+
+  $("paySchedule").value = prefs.paySchedule;
+  $("paySchedule").addEventListener("change", function () {
+    prefs.paySchedule = $("paySchedule").value;
+    write(PREFS_KEY, prefs);
+    renderRange();
+  });
+
+  $("clearHistory").addEventListener("click", function () {
+    if (!window.confirm("Delete every logged shift? This can't be undone.")) return;
+    history = {};
+    write(HISTORY_KEY, history);
+    rangeStart = null; rangeEnd = null;
+    buildMonths();
+    renderHistory();
+    renderRules();
+  });
+
+  // ── tabs ───────────────────────────────────────────────────
+  function showTab(next) {
+    tab = next;
+    ["shift", "history", "rules"].forEach(function (t) {
+      $("panel-" + t).className = "wrap" + (t === tab ? "" : " hide");
+    });
+    Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (b) {
+      b.setAttribute("aria-selected", b.dataset.tab === tab ? "true" : "false");
+    });
+    renderPad();
+    $("scroll").scrollTop = 0;
+    if (tab === "history") renderHistory();
+    if (tab === "rules") renderRules();
+  }
+  Array.prototype.forEach.call(document.querySelectorAll("[data-tab]"), function (b) {
+    b.addEventListener("click", function () { showTab(b.dataset.tab); });
+  });
+
+  // Physical keyboard drives the selected field row (desktop, where the on-screen pad is hidden).
+  document.addEventListener("keydown", function (e) {
+    if (tab !== "shift") return;
+    var t = e.target;
+    if (t && (t.tagName === "INPUT" || t.tagName === "SELECT" || t.tagName === "TEXTAREA")) return;
+    if (e.metaKey || e.ctrlKey || e.altKey) return;
+    if (/^[0-9]$/.test(e.key) || e.key === ".") { press(e.key); e.preventDefault(); }
+    else if (e.key === "Backspace") { press("\u232B"); e.preventDefault(); }
+    else if (e.key === "Tab") return;
+  });
+
+  // ── boot ───────────────────────────────────────────────────
+  var now = new Date();
+  $("todayLabel").textContent = DAY_NAMES[now.getDay()] + ", " + MONTH_NAMES[now.getMonth()] + " " + now.getDate();
+  buildMonths();
+  renderFieldRows();
+  renderPad();
+  renderBreakdown();
+  renderRules();
+  renderHistory();
+  if (!storageAvailable) setStatus($("saveStatus"), "Storage unavailable — changes won't be saved", true);
+
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", function () {
+      navigator.serviceWorker.register("sw.js").catch(function () {});
+    });
+  }
+})();
 </script>
 </body>
 </html>

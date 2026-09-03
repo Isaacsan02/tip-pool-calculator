@@ -1,6 +1,6 @@
 {
-  "name": "Tip Pool",
-  "short_name": "Tip Pool",
+  "name": "Tip Tracker",
+  "short_name": "Tip Tracker",
   "description": "Work out your tip-out and what you keep, every shift.",
   "start_url": ".",
   "scope": ".",
